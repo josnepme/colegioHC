@@ -1,0 +1,1 @@
+import{aH as e}from"./index-Ce1qGJhM.js";import{api as a}from"./axios-CJQ4FeKY.js";const s=e("periodo",{state:()=>({inicio:"",cierre:""}),getters:{},actions:{async getPeriodo(){var o=new FormData;o.append("opcion",2);const i=await a.post("periodos",o);return this.inicio=i.data.inicio,this.cierre=i.data.cierre,i.data}}});export{s as u};
