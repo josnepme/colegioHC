@@ -116,6 +116,34 @@ class Seguridad
           'mensaje' => 'ok'
         ));
         break;
+      case 4:
+        $databaseService = new DatabaseService();
+        $db = $databaseService->getConnection();
+        $id = Flight::request()->data->id;
+        $pregunta = Flight::request()->data->pregunta;
+        $respuesta = Flight::request()->data->respuesta;
+        $db->runQuery("UPDATE usuarios SET pregunta = ?, respuesta = ? WHERE id = ?", [$pregunta, $respuesta, $id]);
+        Flight::json(array(
+          'mensaje' => 'ok'
+        ));
+        break;
+      case 5:
+        $databaseService = new DatabaseService();
+        $db = $databaseService->getConnection();
+        $id = Flight::request()->data->id;
+
+        $users = $db->fetchRow('SELECT * FROM usuarios where id = ? ', [$id]);
+
+        if ($users) {
+          Flight::json(array(
+            'pregunta' => $users['pregunta'],
+            'respuesta' => $users['respuesta']
+          ));
+        } else {
+          Flight::json(array(
+            'mensaje' => 'Usuario no encontrado'
+          ));
+        }
     }
   }
 
@@ -221,21 +249,45 @@ class Seguridad
         }
         break;
       case 5:
-        $id = Flight::request()->data->id;
-        $password = '123';
-        try {
-          $password_hash = password_hash($password, PASSWORD_BCRYPT);
-          $db->runQuery("UPDATE usuarios set password=  ? WHERE id = ?", [$password_hash, $id]);
+        $usuario = secure_data(Flight::request()->data->usuario);
+        $users = $db->runQuery('SELECT * FROM usuarios where usuario = ? ', [$usuario]);
+        $filas_afectadas = $users->rowCount();
+
+        if ($filas_afectadas > 0) {
+
+          while ($row = $users->fetch()) {
+
+            Flight::json(array(
+              'mensaje' => 'ok',
+              'pregunta' => $row['pregunta']
+            ));
+          }
+        } else {
 
           Flight::json(array(
-            'mensaje' => 'ok'
-          ), 200);
-        } catch (Exception $e) {
-          echo json_encode(array(
-            "mensaje" => "Access Denegado",
-            "error" => $e->getMessage()
+            'mensaje' => 'usuario no encontrado'
           ));
         }
+        break;
+      case 6:
+        $usuario = Flight::request()->data->usuario;
+        $respuesta = Flight::request()->data->respuesta;
+
+        $users = $db->runQuery('SELECT * FROM usuarios where usuario = ? and respuesta = ?', [$usuario, $respuesta]);
+        $filas_afectadas = $users->rowCount();
+        if ($filas_afectadas > 0) {
+          Flight::json(array(
+            'mensaje' => 'ok'
+          ));
+          $password = '123';
+          $password_hash = password_hash($password, PASSWORD_BCRYPT);
+          $db->runQuery("UPDATE usuarios set password=  ? WHERE usuario = ?", [$password_hash, $usuario]);
+        } else {
+          Flight::json(array(
+            'mensaje' => 'respuesta incorrecta'
+          ));
+        }
+
         break;
     }
   }
