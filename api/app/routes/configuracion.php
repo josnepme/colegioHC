@@ -87,6 +87,130 @@ class Configuracion
         break;
 
       case 6:
+        $id = Flight::request()->data->seccion;
+
+
+        $respuesta = $db->fetchRow('SELECT 
+                secciones.id,
+                secciones.grado,
+                secciones.seccion,
+                secciones.descripcion
+                FROM
+                secciones
+                WHERE
+                secciones.id = ?', [$id]);
+
+
+        try {
+          $mpdf = new \Mpdf\Mpdf([
+            'mode' => 'utf-8',
+            //'format' => 'Legal',
+            'format' => 'A4',
+            'orientation' => 'P'
+          ]);
+
+          $mpdf->useSubstitutions = false;
+          $mpdf->setAutoTopMargin = 'stretch';
+          $mpdf->SetDisplayMode('real');
+          $mpdf->SetAuthor('Jose Meneses');
+
+          $cabecera = '
+         <table width="100%" style="font-size:8pt;" ><tr>
+         <td width="33%" align="center"><img src="../imagenes/111.png" width="100" height="100" alt="Logo"></td>
+         </tr></table>
+         <br/>
+         <table width="100%" style="font-weight: bold;font-size:12pt;" ><tr>
+         <td width="33%" align="center" > Seccion: ' . $respuesta['descripcion'] . ' </td>
+         </tr></table>
+         <br/>
+         <table width="100%" style="font-weight: bold;font-size:10pt; " ><tr>
+         <td width="33%" align="center" >COMPLEJO EDUCATIVO "HUGO RAFAEL CHAVEZ FRIAS" </td>
+         </tr></table>';
+          $mpdf->SetHTMLHeader($cabecera);
+
+          $sql = "SELECT 
+  `alumnos`.`cedula`,
+  `alumnos`.`nombres`,
+  `alumnos`.`apellidos`,
+  `alumnos`.`sexo`
+FROM
+  `alumnos`
+WHERE
+  `id_seccion` = ?";
+
+          $registros = $db->runQuery($sql, [$id]);
+
+          $mpdf->WriteHTML('');
+          $mpdf->ln(2);
+          $mpdf->SetFont('Arial', 'B', '11');
+          $stylesheet = file_get_contents('../css/tablas.css'); // la ruta a tu css
+          $mpdf->WriteHTML($stylesheet, 1);
+          $htmlTabla = "";
+          $htmlTabla .= ' <table align="center"  class="styled-table table-striped table-bordered table-hover" style="font-size: 10px; width:100%;">';
+
+
+          $htmlTabla .= '<tr>';
+          $htmlTabla .=  '<th >CEDULA</th>';
+          $htmlTabla .=  '<th >NOMBRE</th>';
+          $htmlTabla .=  '<th >SEXO</th>';
+          $htmlTabla .=  '</tr>';
+          while ($row = $registros->fetch()) {
+
+            $htmlTabla .=  '<tbody>';
+            $htmlTabla .=  '<tr>';
+            $htmlTabla .=   '<td style="padding: 1px;" >' . $row['cedula'] . '</td>';
+            $htmlTabla .=   '<td style="padding: 1px;" >' .  $row['nombres'] . ' ' . $row['apellidos'] . '</td>';
+            $htmlTabla .=   '<td style="padding: 1px;" align="center">' .  $row['sexo'] . '</td>';
+            $htmlTabla .=  '</tr>';
+            $htmlTabla .=  '</tbody>';
+          }
+
+
+          $htmlTabla .=  '</table>';
+          $mpdf->WriteHTML($htmlTabla);
+
+          # Resumenes 
+          $mpdf->ln(2);
+          $mpdf->WriteHTML('Resumen');
+          $sql = "SELECT 
+          SUM(CASE WHEN `sexo` = 'M' THEN 1 ELSE 0 END) AS total_m,
+          SUM(CASE WHEN `sexo` = 'F' THEN 1 ELSE 0 END) AS total_f,
+          COUNT(*) AS total
+          FROM `alumnos`
+          WHERE 
+            `id_seccion` = ?";
+          $registros2 = $db->runQuery($sql, [$id]);
+          $mpdf->SetFont('Arial', 'B', '11');
+          $stylesheet = file_get_contents('../css/tablas.css'); // la ruta a tu css
+          $mpdf->WriteHTML($stylesheet, 1);
+          $htmlTabla = "";
+          $htmlTabla .= ' <table align="center"  class="styled-table table-striped table-bordered table-hover" style="font-size: 10px; width:100%;">';
+          $htmlTabla .= '<tr>';
+          $htmlTabla .=  '<th >TOTAL MASCULINO</th>';
+          $htmlTabla .=  '<th >TOTAL FEMENINO</th>';
+          $htmlTabla .=  '<th >TOTAL</th>';
+          $htmlTabla .=  '</tr>';
+          while ($row = $registros2->fetch()) {
+
+            $htmlTabla .=  '<tbody>';
+            $htmlTabla .=  '<tr>';
+            $htmlTabla .=   '<td style="padding: 1px;" align="center">' . $row['total_m'] . '</td>';
+            $htmlTabla .=   '<td style="padding: 1px;" align="center">' .  $row['total_f'] . '</td>';
+            $htmlTabla .=   '<td style="padding: 1px;" align="center">' .  $row['total'] . '</td>';
+            $htmlTabla .=  '</tr>';
+            $htmlTabla .=  '</tbody>';
+          }
+
+          $htmlTabla .=  '</table>';
+          $mpdf->WriteHTML($htmlTabla);
+
+
+          $mpdf->Output('filename.pdf', \Mpdf\Output\Destination::INLINE);
+        } catch (\Mpdf\MpdfException $e) { // Note: safer fully qualified exception name used for catch
+          // Process the exception, log, print etc.
+          echo $e->getMessage();
+        }
+
 
 
 
@@ -562,7 +686,7 @@ GROUP BY
       case 1:
         $respuesta = $db->fetchAll("SELECT *
             FROM
-            `personal`");
+            `personal` order by tipo_personal asc");
         Flight::json($respuesta, 200);
 
         break;
@@ -577,6 +701,9 @@ GROUP BY
         $direccion = Flight::request()->data->direccion;
         $correo = Flight::request()->data->correo;
         $foto = Flight::request()->files->foto;
+        $profesion = Flight::request()->data->profesion;
+        $telefonoc = Flight::request()->data->telefonoc;
+        $fechan = Flight::request()->data->fechan;
 
         $nombreimgExt = null;
         if ($foto) {
@@ -602,8 +729,12 @@ GROUP BY
                 `direccion`,
                 `correo`,
                 `foto`,
-                `estatus`)
-                VALUE (?,?,?,?,?,?,?,?,?,?,?)', [$cedula, $nombre, $apellido, $sexo, $cargo, $tipo_personal, $telefono, $direccion, $correo, $nombreimgExt, 'ACTIVO']);
+                `estatus`,
+                `profesion`,
+                `telefonoc`,
+                `fechanaci`
+                )
+                VALUE (?,?,?,?,?,?,?,?,?,?,?,?,?,?)', [$cedula, $nombre, $apellido, $sexo, $cargo, $tipo_personal, $telefono, $direccion, $correo, $nombreimgExt, 'ACTIVO', $profesion, $telefonoc, $fechan]);
           Flight::json(array(
             'mensaje' => 'ok'
           ), 200);
@@ -628,6 +759,9 @@ GROUP BY
         $correo = Flight::request()->data->correo;
         $foto = Flight::request()->files->foto;
         $estatus = Flight::request()->data->estatus;
+        $profesion = Flight::request()->data->profesion;
+        $telefonoc = Flight::request()->data->telefonoc;
+        $fechan = Flight::request()->data->fechan;
         $nombreimgExt = null;
         $upload_location = '../public/fotos/';
         try {
@@ -651,7 +785,7 @@ GROUP BY
                     `telefono` = ?,
                     `direccion` = ?,
                     `correo` = ?,
-                    `foto` = ? ,`estatus` = ? WHERE id = ?", [$cedula, $nombre, $apellido, $sexo, $cargo, $tipo_personal, $telefono, $direccion, $correo, $nombreimgExt, $estatus, $id]);
+                    `foto` = ? ,`estatus` = ? , `profesion` = ?, `telefonoc` = ?, `fechanaci` = ? WHERE id = ?", [$cedula, $nombre, $apellido, $sexo, $cargo, $tipo_personal, $telefono, $direccion, $correo, $nombreimgExt, $estatus, $profesion, $telefonoc, $fechan, $id]);
           } else {
             $db->runQuery("UPDATE `personal` SET 
                         `cedula` = ?,
@@ -662,7 +796,7 @@ GROUP BY
                     `tipo_personal` = ?,
                     `telefono` = ?,
                     `direccion` = ?,
-                    `correo` = ?, `estatus` = ? WHERE id = ?", [$cedula, $nombre, $apellido, $sexo, $cargo, $tipo_personal, $telefono, $direccion, $correo, $estatus, $id]);
+                    `correo` = ?, `estatus` = ? , `profesion` = ?, `telefonoc` = ?, `fechanaci` = ? WHERE id = ?", [$cedula, $nombre, $apellido, $sexo, $cargo, $tipo_personal, $telefono, $direccion, $correo, $estatus, $profesion, $telefonoc, $fechan, $id]);
           }
           Flight::json(array(
             'mensaje' => 'ok'
@@ -692,6 +826,146 @@ GROUP BY
             "mensaje" => "Access denegado",
             "error" => Flight::error($e)
           ), 401);
+        }
+        break;
+      case 5:
+        $cedula = Flight::request()->data->cedula;
+        $respuesta = $db->fetchRow("SELECT * FROM personal WHERE cedula = ? AND estatus = 'ACTIVO'", [$cedula]);
+        Flight::json($respuesta, 200);
+
+
+        break;
+      case 6:
+        try {
+          $mpdf = new \Mpdf\Mpdf([
+            'mode' => 'utf-8',
+            //'format' => 'Legal',
+            'format' => 'A4',
+            'orientation' => 'P'
+          ]);
+
+          $mpdf->useSubstitutions = false;
+          $mpdf->setAutoTopMargin = 'stretch';
+          $mpdf->SetDisplayMode('real');
+          $mpdf->SetAuthor('Jose Meneses');
+
+          $cabecera = '
+         <table width="100%" style="font-size:8pt;" ><tr>
+         <td width="33%" align="center"><img src="../imagenes/111.png" width="100" height="100" alt="Logo"></td>
+         </tr></table>
+         <br/>
+         <table width="100%" style="font-weight: bold;font-size:12pt;" ><tr>
+         <td width="33%" align="center" > Listado Personal: </td>
+         </tr></table>
+         <br/>
+         <table width="100%" style="font-weight: bold;font-size:10pt; " ><tr>
+         <td width="33%" align="center" >COMPLEJO EDUCATIVO "HUGO RAFAEL CHAVEZ FRIAS" </td>
+         </tr></table>';
+          $mpdf->SetHTMLHeader($cabecera);
+
+          $sql = "SELECT 
+  `personal`.`cedula`,
+  `personal`.`nombre`,
+  `personal`.`apellido`,
+  `personal`.`sexo`,
+  `personal`.`cargo`,
+  `personal`.`tipo_personal`,
+  `personal`.`fechanaci`,
+   TIMESTAMPDIFF(YEAR, fechanaci, CURDATE()) AS edad ,
+  `personal`.`telefono`,
+  `personal`.`direccion`,
+  `personal`.`correo`,
+  `personal`.`estatus`,
+  `personal`.`profesion`,
+  `personal`.`telefonoc`,
+  `personal`.`foto`
+FROM
+  `personal`";
+
+          $registros = $db->runQuery($sql);
+
+          $mpdf->WriteHTML('');
+          $mpdf->ln(2);
+          $mpdf->SetFont('Arial', 'B', '11');
+          $stylesheet = file_get_contents('../css/tablas.css'); // la ruta a tu css
+          $mpdf->WriteHTML($stylesheet, 1);
+          $htmlTabla = "";
+          $htmlTabla .= ' <table align="center"  class="styled-table table-striped table-bordered table-hover" style="font-size: 10px; width:100%;">';
+
+
+          $htmlTabla .= '<tr>';
+          $htmlTabla .=  '<th >CEDULA</th>';
+          $htmlTabla .=  '<th >NOMBRE</th>';
+          $htmlTabla .=  '<th >SEXO</th>';
+          $htmlTabla .=  '<th >FECHA NACIMIENTO</th>';
+          $htmlTabla .=  '<th >EDAD</th>';
+          $htmlTabla .=  '<th >CARGO</th>';
+          $htmlTabla .=  '<th >TIPO PERSONAL</th>';
+          $htmlTabla .=  '<th >ESTATUS</th>';
+          $htmlTabla .=  '<th >PROFESION</th>';
+
+          $htmlTabla .=  '</tr>';
+          while ($row = $registros->fetch()) {
+            $fechanaci = !empty($row['fechanaci']) ? date_format(date_create($row['fechanaci']), 'd-m-Y') : '';
+            $edad = $row['edad'];
+            $htmlTabla .=  '<tbody>';
+            $htmlTabla .=  '<tr>';
+            $htmlTabla .=   '<td style="padding: 1px;" >' . $row['cedula'] . '</td>';
+            $htmlTabla .=   '<td style="padding: 1px;" >' .  $row['nombre'] . ' ' . $row['apellido'] . '</td>';
+            $htmlTabla .=   '<td style="padding: 1px;" align="center">' .  $row['sexo'] . '</td>';
+            $htmlTabla .=   '<td style="padding: 1px;" align="center">' . $fechanaci . '</td>';
+            $htmlTabla .=   '<td style="padding: 1px;" align="center">' .   $edad . '</td>';
+            $htmlTabla .=   '<td style="padding: 1px;" align="left" >' .  $row['cargo'] . '</td>';
+            $htmlTabla .=   '<td style="padding: 1px;" align="left" >' .  $row['tipo_personal'] . '</td>';
+            $htmlTabla .=   '<td style="padding: 1px;" align="left" >' .  $row['estatus'] . '</td>';
+            $htmlTabla .=   '<td style="padding: 1px;" align="left" >' .  $row['profesion'] . '</td>';
+            $htmlTabla .=  '</tr>';
+            $htmlTabla .=  '</tbody>';
+          }
+
+
+          $htmlTabla .=  '</table>';
+          $mpdf->WriteHTML($htmlTabla);
+
+          # Resumenes 
+          $mpdf->ln(2);
+          $mpdf->WriteHTML('Resumen Personal');
+          $sql = 'SELECT cargo, profesion, estatus, COUNT(*) AS total
+          FROM personal
+          GROUP BY cargo, profesion, estatus
+          ORDER BY profesion ASC';
+          $registros2 = $db->runQuery($sql);
+          $mpdf->SetFont('Arial', 'B', '11');
+          $stylesheet = file_get_contents('../css/tablas.css'); // la ruta a tu css
+          $mpdf->WriteHTML($stylesheet, 1);
+          $htmlTabla = "";
+          $htmlTabla .= ' <table align="center"  class="styled-table table-striped table-bordered table-hover" style="font-size: 10px; width:100%;">';
+          $htmlTabla .= '<tr>';
+          $htmlTabla .=  '<th >CARGO</th>';
+          $htmlTabla .=  '<th >PROFESION</th>';
+          $htmlTabla .=  '<th >ESTATUS</th>';
+          $htmlTabla .=  '<th >TOTAL</th>';
+          $htmlTabla .=  '</tr>';
+          while ($row = $registros2->fetch()) {
+
+            $htmlTabla .=  '<tbody>';
+            $htmlTabla .=  '<tr>';
+            $htmlTabla .=   '<td style="padding: 1px;" align="left">' . $row['cargo'] . '</td>';
+            $htmlTabla .=   '<td style="padding: 1px;" align="left">' .  $row['profesion'] . '</td>';
+            $htmlTabla .=   '<td style="padding: 1px;" align="center">' .  $row['estatus'] . '</td>';
+            $htmlTabla .=   '<td style="padding: 1px;" align="center">' .  $row['total'] . '</td>';
+            $htmlTabla .=  '</tr>';
+            $htmlTabla .=  '</tbody>';
+          }
+
+          $htmlTabla .=  '</table>';
+          $mpdf->WriteHTML($htmlTabla);
+
+
+          $mpdf->Output('filename.pdf', \Mpdf\Output\Destination::INLINE);
+        } catch (\Mpdf\MpdfException $e) { // Note: safer fully qualified exception name used for catch
+          // Process the exception, log, print etc.
+          echo $e->getMessage();
         }
         break;
       default:
@@ -786,7 +1060,6 @@ GROUP BY
             $htmlTabla .=  '</tbody>';
           }
 
-          $htmlTabla .=  '</tbody>';
           $htmlTabla .=  '</table>';
           $mpdf->WriteHTML($htmlTabla);
 
@@ -1225,8 +1498,7 @@ function getCod()
 
 function formatearhora($hora)
 {
+  if (!$hora) return '';
   $timestamp = strtotime($hora);
-  $hora_formato_12h = date("h:i a", $timestamp);
-
-  return  $hora_formato_12h;
+  return date("h:i a", $timestamp);
 }

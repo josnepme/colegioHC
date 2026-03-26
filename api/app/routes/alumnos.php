@@ -42,7 +42,8 @@
                             `alumnos`.`cedulae`,
                             `alumnos`.`cedulam`,
                             `alumnos`.`nombrem`,
-                            `alumnos`.`apellidom`
+                            `alumnos`.`apellidom`,
+                            `alumnos`.`nota_medica`
                         FROM `estados`
                             INNER JOIN `alumnos` ON (`estados`.`id` = `alumnos`.`estado`)
                             INNER JOIN `ciudades` ON (`alumnos`.`ciudad` = `ciudades`.`id`)
@@ -80,6 +81,7 @@
                         $nombrem = Flight::request()->data->nombrem;
                         $apellidom = Flight::request()->data->apellidom;
                         $cedulae = Flight::request()->data->cedulae;
+                        $nota_medica = Flight::request()->data->nota_medica;
 
 
                         // $foto = Flight::request()->data->foto;
@@ -113,7 +115,8 @@
                             `cedulae`,
                             `cedulam`,
                             `nombrem`,
-                            `apellidom`) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+                            `apellidom`,
+                            `nota_medica`) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
                             $respuesta = $db->runQuery($sql, [
                                 $id_seccion,
@@ -143,7 +146,8 @@
                                 $cedulae,
                                 $cedulam,
                                 $nombrem,
-                                $apellidom
+                                $apellidom,
+                                $nota_medica
                             ]);
 
                             Flight::json(array(
@@ -192,8 +196,9 @@
                         $nombrem = Flight::request()->data->nombrem;
                         $apellidom = Flight::request()->data->apellidom;
                         $cedulae = Flight::request()->data->cedulae;
+                        $nota_medica = Flight::request()->data->nota_medica;
                         try {
-                            $sql = 'UPDATE alumnos set id_seccion =?, cedulae=?, cedula =?, nombres =?, apellidos =?, sexo =?, fechanac =?, estado =?, ciudad =?, municipio =?, parroquia =?, peso =?, camisa =?, pantalon =?, calzado =?, media =?, codigo =?, pendiente =?, canaima =?, ced_repre =?, nom_repre =?, ape_repre =?, direccion =?, telefono =?, correo =?, cedulam=?, nombrem=?,apellidom=? WHERE id =?';
+                            $sql = 'UPDATE alumnos set id_seccion =?, cedulae=?, cedula =?, nombres =?, apellidos =?, sexo =?, fechanac =?, estado =?, ciudad =?, municipio =?, parroquia =?, peso =?, camisa =?, pantalon =?, calzado =?, media =?, codigo =?, pendiente =?, canaima =?, ced_repre =?, nom_repre =?, ape_repre =?, direccion =?, telefono =?, correo =?, cedulam=?, nombrem=?,apellidom=?, nota_medica=? WHERE id =?';
                             $respuesta = $db->runQuery($sql, [
                                 $id_seccion,
                                 $cedulae,
@@ -223,6 +228,7 @@
                                 $cedulam,
                                 $nombrem,
                                 $apellidom,
+                                $nota_medica,
                                 $id
                             ]);
                             Flight::json(array(

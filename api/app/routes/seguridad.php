@@ -287,7 +287,6 @@ class Seguridad
             'mensaje' => 'respuesta incorrecta'
           ));
         }
-
         break;
     }
   }
